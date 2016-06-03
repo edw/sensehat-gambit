@@ -220,7 +220,7 @@ c-lambda-end
 (define framebuffer-height 8)
 
 (define (make-bitmap w h)
-  (make-u16vector (* w h) 0))
+  (make-u16vector (fx* w h) 0))
 
 (define (bitmap-plot bm w h x y color)
   (u16vector-set! bm (fx+ (fx* y w) x) color))
