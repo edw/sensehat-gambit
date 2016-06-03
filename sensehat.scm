@@ -283,48 +283,54 @@ c-lambda-end
           (else
            (helper c 0.0 x)))))
 
-(define max-iters 250)
-
 (define color-black 0)
+
+(define max-iters 256)
 
 (define (cell-color cr ci)
   (do ((zr 0.0 (fl+ (fl- (fl* zr zr) (fl* zi zi)) cr))
        (zi 0.0 (fl+ (fl* 2.0 zr zi) ci))
        (i 0 (fx+ i 1)))
       ((or (fx= i max-iters)
-	   (fl> (fl+ (fl* zr zr) (fl* zi zi)) 4.0))
+	   (fl> (fl+ (fl* zr zr) (fl* zi zi)) (flsquare 2.0)))
        (let ((iters-norm (fl/ (fixnum->flonum (fx- max-iters i))
 			      (fixnum->flonum max-iters))))
 	 (hsv->val (fl* pi*2 iters-norm) 1.0 iters-norm)))))
 
 (define brot-bitmap (make-bitmap 8 8))
 
-(define (brot cx cy scale)
+(define (brot cx cy scale theta)
   (let* ((cx-pxs (fl/ (fl- (fixnum->flonum framebuffer-width) 1.0) 2.0))
-         (cy-pxs (fl/ (fl- (fixnum->flonum framebuffer-height) 1.0) 2.0)))
+         (cy-pxs (fl/ (fl- (fixnum->flonum framebuffer-height) 1.0) 2.0))
+	 (sin-theta (flsin theta))
+	 (cos-theta (flcos theta)))
     (let iter-y ((y 0))
       (if (fx< y framebuffer-height)
-          (let ((i (fl+ cy (fl* scale (fl- (fixnum->flonum y) cy-pxs)))))
+          (let* ((i0 (fl* scale (fl- (fixnum->flonum y) cy-pxs))))
             (let iter-x ((x 0))
               (if (fx< x framebuffer-width)
-                  (let ((j (fl+ cx
-				(fl* scale (fl- (fixnum->flonum x) cx-pxs)))))
+                  (let* ((j0 (fl* scale (fl- (fixnum->flonum x) cx-pxs)))
+			 (i1 (fl- (fl* cos-theta i0) (fl* sin-theta j0)))
+			 (j1 (fl+ (fl* cos-theta j0) (fl* sin-theta i0)))
+			 (i (fl+ cy i1))
+			 (j (fl+ cx j1)))
                     (bitmap-plot brot-bitmap 8 8 x y (cell-color i j))
-                    (iter-x (fx+ x 1)))
-                  (iter-y (fx+ y 1)))))
-           (framebuffer-blit brot-bitmap 8 8 0 0 0)))))
+		    (iter-x (fx+ x 1)))
+		  (iter-y (fx+ y 1)))))
+	  (framebuffer-blit brot-bitmap 8 8 0 0 0)))))
 
-(define (iter-brot cx cy begin-scale scale-step iters)
+(define (iter-brot cx cy begin-scale scale-step begin-theta theta-step iters)
   (do ((scale begin-scale (fl* scale scale-step))
+       (theta begin-theta (mod2pi (fl+ theta theta-step)))
        (i 0 (fx+ i 1)))
       ((fx= i iters))
-    (brot cx cy scale)))
+    (brot cx cy scale theta)))
 
 (define (test-iter-brot)
   (framebuffer-init)
   (framebuffer-set-lowlight! #t)
   (do () (#f)
-    (iter-brot 6.77636708120639e-4 -1.57497160008726 0.00015 0.999 3500)))
-
-;; (brot 6.77636708120639e-4 -1.57497160008726 1.0e-06)
-;; (iter-brot 6.77636708120639e-4 -1.57497160008726 0.75 0.953 350)
+    (iter-brot 6.77636708120639e-4 -1.57497160008726
+	       1.0e1 0.995
+	       0.0 0.1
+	       4500)))
